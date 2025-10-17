@@ -1,8 +1,8 @@
 const CACHE_NAME = "msite-cache-v1";
 const urlsToCache = [
-  "index.html",
-  "manifest.json",
-  "msite.png"
+  "./index.html",
+  "./manifest.json",
+  "./msite.png"
 ];
 
 self.addEventListener("install", event => {
@@ -15,7 +15,7 @@ self.addEventListener("install", event => {
 self.addEventListener("fetch", event => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('index.html'))
+      fetch(event.request).catch(() => caches.match('./index.html'))
     );
     return;
   }
