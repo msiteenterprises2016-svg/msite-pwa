@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MSITE Inventory System</title>
+  <style>
+    /* ========== MSITE THEME ========== */
+    :root {
+      --msite-blue: #0a3d62;
+      --msite-blue-2: #1e6091;
+      --accent: #2a9d8f;
+      --danger: #e63946;
+    }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background-color: #f5faff;
+      color: #333;
+      display: flex;
+      min-height: 100vh;
+      flex-direction: column;
+    }
+    .content { flex: 1; display: flex; min-height: 0; }
+    .sidebar {
+      width: 220px;
+      background-color: var(--msite-blue);
+      color: #fff;
+      padding: 20px 0;
+      display:flex;flex-direction:column;align-items:center;
+    }
+    .sidebar img { width:100px; margin-bottom:10px; }
+    .sidebar h2 { margin-bottom:18px; letter-spacing:1px; }
+    .sidebar a {
+      padding:12px 20px; color:#fff; text-decoration:none; display:block; width:100%; text-align:center;
+      transition:background 0.2s;
+    }
+    .sidebar a:hover, .sidebar a.active { background:var(--msite-blue-2); }
+
+    .main { flex:1; display:flex; flex-direction:column; overflow-y:auto; padding:20px; box-sizing:border-box; }
+    .section { display:none; padding:0 0 40px 0; }
+    .section.active { display:block; animation:fadeIn .25s ease-in; }
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+    h1 { color:var(--msite-blue); border-bottom:2px solid var(--msite-blue-2); padding-bottom:8px; margin-bottom:16px; }
+
+    input, select, button { padding:8px; margin:5px; border:1px solid #ccc; border-radius:6px; font-size:14px; }
+    button{ background:var(--msite-blue-2); color:#fff; border:none; cursor:pointer; }
+    button:hover{ background:var(--msite-blue); }
+
+    table{ width:100%; border-collapse:collapse; margin-top:12px; }
+    th, td{ border:1px solid #ddd; padding:8px; text-align:center; }
+    th{ background:var(--msite-blue); color:#fff; }
+    td.editing{ background:#fff8c4; } /* light yellow while editing */
+    .action-btn{ padding:5px 10px; font-size:12px; margin:2px; border-radius:4px; color:#fff; cursor:pointer; }
+    .delete-btn{ background:var(--danger); }
+    .view-btn{ background:var(--accent); }
+
+    .summary{ margin-top:20px; background:#e8f0ff; padding:10px; border-radius:6px; }
+    .grand-total{ margin-top:10px; text-align:right; font-weight:bold; color:var(--msite-blue); }
+
+    .frontpage{ display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:80px 20px; background:#e8f0ff; min-height:300px; }
+    .frontpage h1{ font-size:2.2rem; color:var(--msite-blue); margin:0 0 10px 0; }
+    .frontpage p{ max-width:700px; color:#333; line-height:1.6; }
+
+    footer{ text-align:center; padding:12px; font-size:0.95rem; color:#fff; background:var(--msite-blue); width:100%; }
+
+    /* In-app receipt preview (compact box) */
+    #receipt, #cashout-receipt {
+      display:none;
+      background:#fff;
+      padding:10px;
+      border:1px solid #ccc;
+      margin:12px auto;
+      width:320px;
+      font-size:12px;
+      font-family: "Segoe UI", sans-serif;
+      box-sizing:border-box;
+    }
+    #receipt .receipt-inner, #cashout-receipt .receipt-inner {
+      background: #fff;
+      padding: 6px;
+      border-radius: 4px;
+    }
+
+    @media (max-width:700px){
+      .sidebar{ display:none }
+      #receipt, #cashout-receipt{ width:100%; box-sizing:border-box }
+    }
+
+    /* Receipt preview modal (in-page) */
+    .modal-backdrop {
+      display:none;
+      position:fixed; inset:0;
+      background: rgba(0,0,0,0.6);
+      align-items:center; justify-content:center;
+      z-index:9999;
+    }
+    .modal-backdrop.show { display:flex; }
+    .modal-box {
+      background:#fff; padding:12px; border-radius:8px; width:90%; max-width:720px; box-sizing:border-box;
+    }
+    .modal-actions { text-align:center; margin-top:10px; }
+    .modal-actions button { margin:0 6px; }
+  </style>
+</head>
+<body>
+  <div class="content">
+    <div class="sidebar">
+      <img src="msite.png" alt="MSITE Logo">
+      <h2>MSITE</h2>
+      <a href="#" class="menu-link active" data-section="home-section">Home</a>
+      <a href="#" class="menu-link" data-section="stock-section">Stock Management</a>
+      <a href="#" class="menu-link" data-section="purchase-section">Purchase Order</a>
+      <a href="#" class="menu-link" data-section="po-list-section">PO List</a>
+      <a href="#" class="menu-link" data-section="cashout-section">Cashout</a>
+      <a href="#" class="menu-link" data-section="sales-section">Sales History</a>
+	<a href="#" class="menu-link" data-section="buy-section">Items to Buy</a>
+
+    </div>
+
+    <div class="main">
+      <!-- Home -->
+      <div id="home-section" class="section active">
+        <div class="frontpage">
+          <h1>Welcome to MSITE Enterprises</h1>
+          <p>MSITE is a trusted enterprise specializing in school materials, durable furniture, and construction essentials. Providing affordable, top-grade products for schools and businesses since 2016.</p>
+        </div>
+      </div>
+
+      <!-- Stock Management -->
+<div id="stock-section" class="section">
+  <h1>Stock Management</h1>
+  <div class="form-row">
+    <input id="stock-name" placeholder="Item Name">
+    <input id="stock-qty" type="number" placeholder="Quantity">
+    <input id="stock-unit" placeholder="Unit">
+    <input id="stock-price" type="number" placeholder="Price">
+    <button onclick="addStock()">Add Item</button>
+  </div>
+
+  <div class="form-row">
+    <input id="stock-search" placeholder="Search item...">
+  </div>
+
+  <table id="stockTable">
+    <thead>
+      <tr>
+        <th>Item</th><th>Qty</th><th>Unit</th><th>Price</th><th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="stockTableBody"></tbody>
+  </table>
+</div>
+
+
+<!-- Items to Buy Section -->
+<div id="buy-section" class="section buy-card">
+  <h1>Items to Buy</h1>
+  
+  <!-- Input Form -->
+  <div class="buy-form">
+    <input type="text" id="itemName" placeholder="Item Name">
+    <input type="text" id="itemUnit" placeholder="Unit (pcs, kg...)">
+    <input type="number" id="itemQty" placeholder="Qty">
+    <input type="number" id="itemPrice" placeholder="Price">
+    <button onclick="addBuyItem()">Add</button>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="buy-search">
+    <input id="buy-search" placeholder="Search item...">
+  </div>
+
+  <!-- Items Table -->
+  <div class="buy-table-wrapper">
+    <table id="buyTable">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Unit</th>
+          <th>Qty</th>
+          <th>Price</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="buyTableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="buy-actions">
+    <button onclick="confirmBuyList()">Confirm Order</button>
+    <button onclick="printBuyList()">Print Buy List</button>
+  </div>
+</div>
+
+<style>
+/* Card Layout */
+.buy-card {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  max-width: 900px;
+  margin: 20px auto;
+  font-family: Arial, sans-serif;
+}
+
+/* Section Header */
+.buy-card h1 {
+  margin-bottom: 16px;
+  font-size: 1.5rem;
+  color: #1e6091;
+}
+
+/* Input Form */
+.buy-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.buy-form input {
+  flex: 1;
+  min-width: 100px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.buy-form button {
+  padding: 8px 16px;
+  border: none;
+  background-color: #1e6091;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.buy-form button:hover {
+  background-color: #0a3d62;
+}
+
+/* Search Bar */
+.buy-search {
+  margin-bottom: 12px;
+  text-align: right;
+}
+
+.buy-search input {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  width: 220px;
+}
+
+/* Table — MSITE Themed */
+.buy-table-wrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+#buyTable {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+#buyTable th, #buyTable td {
+  padding: 10px;
+  text-align: center;
+  border: 1px solid #ddd;
+}
+
+#buyTable th {
+  background-color: var(--msite-blue);
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+#buyTable tr:nth-child(even) {
+  background-color: #f9fbff;
+}
+
+#buyTable tr:hover {
+  background-color: #e8f0ff;
+  transition: background 0.2s;
+}
+
+
+/* Action Buttons */
+.buy-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+}
+
+.buy-actions button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background-color: #0a3d62;
+  color: white;
+  transition: background 0.3s;
+}
+
+.buy-actions button:hover {
+  background-color: #1e6091;
+}
+</style>
+
+
+      <!-- Purchase Order -->
+      <div id="purchase-section" class="section">
+        <h1>Purchase Order</h1>
+        <input list="po-item-list" id="poItem" class="item-select" placeholder="Select Item">
+        <datalist id="po-item-list"></datalist>
+        <input type="number" id="poQty" placeholder="Quantity"> <input type="text" id="po-school" placeholder="School Name">
+        <button onclick="addToCurrentPO()">Add to Order</button>  <button onclick="submitPO()">Submit Order</button>
+
+        <div style="margin-top:8px;">
+          <label for="receipt-size-po">Paper Size:</label>
+          <select id="receipt-size-po">
+            <option value="58mm">Thermal (58mm)</option>
+            <option value="80mm">Thermal (80mm)</option>
+            <option value="A5">A5</option>
+            <option value="A4">A4</option>
+          </select>
+          <button onclick="previewPOReceipt()">Preview & Print Receipt</button>
+        </div>
+
+        <table id="poTable">
+          <thead>
+            <tr><th>Item</th><th>Qty</th><th>Unit</th><th>Price</th><th>Total</th><th>Action</th></tr>
+          </thead>
+          <tbody id="poTableBody"></tbody>
+        </table>
+
+        <div class="grand-total">PO Total: <span id="po-total">0.00</span></div>
+        <div id="receipt" aria-hidden="true"></div>
+      </div>
+
+      <!-- PO List -->
+      <div id="po-list-section" class="section">
+        <h1>Purchase Order List</h1>
+        <table id="po-list-table">
+          <thead><tr><th>Date</th><th>School</th><th>Total</th><th>Action</th></tr></thead>
+          <tbody id="po-list-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Cashout -->
+      <div id="cashout-section" class="section">
+        <h1>Cashout</h1>
+        <input list="item-list" id="cashout-item" class="item-select" placeholder="Select Item">
+        <datalist id="item-list"></datalist>
+        <input type="number" id="cashout-qty" placeholder="Quantity">
+        <button onclick="addToCashout()">Add to Sales</button>
+        <button onclick="finalizeCashout()">Finalize & Save</button>
+
+        <div style="margin-top:8px;">
+          <label for="receipt-size-cash">Paper Size:</label>
+          <select id="receipt-size-cash">
+            <option value="58mm">Thermal (58mm)</option>
+            <option value="80mm">Thermal (80mm)</option>
+            <option value="A5">A5</option>
+            <option value="A4">A4</option>
+          </select>
+          <button onclick="previewCashoutReceipt()">Preview & Print Receipt</button>
+        </div>
+
+        <div class="summary">
+          <table id="salesTable">
+            <thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Price</th><th>Total</th><th>Action</th></tr></thead>
+            <tbody id="salesTableBody"></tbody>
+          </table>
+          <div class="grand-total">Grand Total: <span id="salesTotal">0.00</span></div>
+        </div>
+
+        <div id="cashout-receipt" aria-hidden="true"></div>
+      </div>
+
+      <!-- Sales History -->
+      <div id="sales-section" class="section">
+        <h1>Sales History</h1>
+        <button onclick="clearSalesHistory()">Clear History</button>
+        <table id="history-table">
+          <thead><tr><th>Date</th><th>Item</th><th>Qty</th><th>Unit</th><th>Price</th><th>Total</th><th>School</th></tr></thead>
+          <tbody id="history-table-body"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <footer><strong>Mr. Michael Martinez | Since 2016 | Registered to PhilGEPS</strong></footer>
+
+  <!-- In-page preview modal (fallback) -->
+  <div id="preview-modal" class="modal-backdrop">
+    <div class="modal-box">
+      <div id="preview-content"></div>
+      <div class="modal-actions">
+        <button onclick="openPrintWindowFromModal()">Open Print Window</button>
+        <button onclick="closeModalPreview()">Close Preview</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ===========================
+       Persistent data stores
+       =========================== */
+    let stockData = JSON.parse(localStorage.getItem('stockData')) || [];
+    let salesData = JSON.parse(localStorage.getItem('salesData')) || [];
+    let poList = JSON.parse(localStorage.getItem('poList')) || [];
+    let currentPO = [];
+    let cashoutBuffer = JSON.parse(localStorage.getItem('cashoutBuffer')) || [];
+
+    // State to track last preview type for auto-clear after print
+    let lastPreviewType = null; // 'cash' | 'po' | null
+    let lastPreviewPayload = null;
+
+    function saveData(){
+      localStorage.setItem('stockData', JSON.stringify(stockData));
+      localStorage.setItem('salesData', JSON.stringify(salesData));
+      localStorage.setItem('poList', JSON.stringify(poList));
+      localStorage.setItem('cashoutBuffer', JSON.stringify(cashoutBuffer));
+    }
+
+    function escapeHtml(str){
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    }
+let buyList = JSON.parse(localStorage.getItem('buyList')) || [];
+
+function saveBuyList() {
+  localStorage.setItem('buyList', JSON.stringify(buyList));
+}
+
+function renderBuyList() {
+  const tbody = document.getElementById('buyTableBody');
+  tbody.innerHTML = '';
+  buyList.forEach((item, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${item.name}</td>
+      <td>${item.unit}</td> <!-- render unit -->
+      <td>${item.qty}</td>
+      <td>${item.price.toFixed(2)}</td>
+      <td><button onclick="removeBuyItem(${idx})">Delete</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+function removeBuyItem(index) {
+  if (!confirm('Are you sure you want to delete this item?')) return;
+  buyList.splice(index, 1);   // remove from array
+  saveBuyList();              // update localStorage
+  renderBuyList();            // re-render the table
+}
+
+
+
+
+
+
+
+// Add item
+function addBuyItem() {
+  const name = document.getElementById('itemName').value;
+  const unit = document.getElementById('itemUnit').value; // <-- unit captured
+  const qty = Number(document.getElementById('itemQty').value);
+  const price = Number(document.getElementById('itemPrice').value);
+
+  if(!name || !unit || !qty || !price) return alert('Please fill all fields.');
+
+  buyList.push({ name, unit, qty, price });
+  saveBuyList();
+  renderBuyList();
+}
+
+
+// Search filter
+document.getElementById('buy-search').addEventListener('input', function() {
+  const query = this.value.toLowerCase();
+  const tbody = document.getElementById('buyTableBody');
+  Array.from(tbody.rows).forEach(row => {
+    const itemName = row.cells[0].textContent.toLowerCase();
+    row.style.display = itemName.includes(query) ? '' : 'none';
+  });
+});
+
+// Initialize
+renderBuyList();
+
+function printBuyList() {
+  if (buyList.length === 0) return alert('No items to print!');
+
+  let rows = '';
+  let grandTotal = 0;
+
+  buyList.forEach(item => {
+    const total = item.qty * item.price;
+    grandTotal += total;
+    rows += `
+      <tr>
+        <td style="padding:6px 4px;border-bottom:1px dashed #ccc;">${escapeHtml(item.name)}</td>
+        <td style="padding:6px 4px;border-bottom:1px dashed #ccc;text-align:center;">${escapeHtml(item.unit || '')}</td>
+        <td style="padding:6px 4px;border-bottom:1px dashed #ccc;text-align:center;">${item.qty}</td>
+        <td style="padding:6px 4px;border-bottom:1px dashed #ccc;text-align:right;">${Number(item.price).toFixed(2)}</td>
+        <td style="padding:6px 4px;border-bottom:1px dashed #ccc;text-align:right;">${total.toFixed(2)}</td>
+      </tr>
+    `;
+  });
+
+  const html = `
+    <div style="font-family:'Segoe UI',sans-serif; width:320px; margin:0 auto;">
+      <div style="text-align:center; margin-bottom:6px;">
+        <h2 style="margin:0; color:var(--msite-blue);">MSITE Enterprises</h2>
+       
+
+      </div>
+
+      <div style="margin-top:8px;font-weight:bold;text-align:center;">ITEMS TO BUY</div>
+      <hr style="border:none;border-top:1px dashed #333;margin:8px 0;">
+
+      <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:6px 4px;">Item</th>
+            <th style="text-align:center;padding:6px 4px;">Unit</th>
+            <th style="text-align:center;padding:6px 4px;">Qty</th>
+            <th style="text-align:right;padding:6px 4px;">Price</th>
+            <th style="text-align:right;padding:6px 4px;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+
+      <div style="margin-top:8px;text-align:right;font-weight:bold;">
+        Grand Total: ${grandTotal.toFixed(2)}
+      </div>
+
+      <hr style="border:none;border-top:1px dashed #333;margin:8px 0;">
+  
+    </div>
+  `;
+
+  const w = window.open('', '', 'height=600,width=800');
+  w.document.write('<html><head><title>Buy List</title></head><body>');
+  w.document.write(html);
+  w.document.write('</body></html>');
+  w.document.close();
+  w.focus();
+  w.print();
+  w.close();
+}
+
+
+
+
+    /* ===========================
+       STOCK - render/manage
+       =========================== */
+    function renderStock(){
+      const tbody = document.getElementById('stockTableBody');
+      const datalist = document.getElementById('item-list');
+      const poListData = document.getElementById('po-item-list');
+      tbody.innerHTML = ''; if(datalist) datalist.innerHTML = ''; if(poListData) poListData.innerHTML = '';
+
+      stockData.forEach((item, idx) => {
+        const tr = document.createElement('tr');
+
+        const tdName = document.createElement('td');
+        tdName.textContent = item.name;
+        tdName.contentEditable = true;
+        tdName.addEventListener('blur', () => {
+          const v = tdName.textContent.trim();
+          if(!v){ renderStock(); return; }
+          stockData[idx].name = v;
+          saveData();
+          updateItemLists();
+        });
+        tr.appendChild(tdName);
+
+        const tdQty = document.createElement('td');
+        tdQty.textContent = item.qty;
+        tdQty.contentEditable = true;
+        tdQty.addEventListener('blur', ()=> {
+          const n = parseFloat(tdQty.textContent);
+          if(isNaN(n)){ renderStock(); return; }
+          stockData[idx].qty = n;
+          saveData();
+        });
+        tr.appendChild(tdQty);
+
+        const tdUnit = document.createElement('td');
+        tdUnit.textContent = item.unit || '';
+        tdUnit.contentEditable = true;
+        tdUnit.addEventListener('blur', ()=> {
+          stockData[idx].unit = tdUnit.textContent.trim();
+          saveData();
+          updateItemLists();
+        });
+        tr.appendChild(tdUnit);
+
+        const tdPrice = document.createElement('td');
+        tdPrice.textContent = item.price;
+        tdPrice.contentEditable = true;
+        tdPrice.addEventListener('blur', ()=> {
+          const n = parseFloat(tdPrice.textContent);
+          if(isNaN(n)){ renderStock(); return; }
+          stockData[idx].price = n;
+          saveData();
+        });
+        tr.appendChild(tdPrice);
+
+        const tdAction = document.createElement('td');
+        const delBtn = document.createElement('button');
+        delBtn.className = 'action-btn delete-btn';
+        delBtn.textContent = 'Delete';
+        delBtn.onclick = () => { if(confirm('Delete this item?')) { stockData.splice(idx,1); saveData(); renderStock(); updateItemLists(); } };
+        tdAction.appendChild(delBtn);
+        tr.appendChild(tdAction);
+
+        tbody.appendChild(tr);
+
+        if (datalist) datalist.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(item.name)}">`);
+        if (poListData) poListData.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(item.name)}">`);
+      });
+      updateItemLists();
+    }
+
+// Real-time search in Stock Management
+document.getElementById('stock-search').addEventListener('input', function() {
+  const query = this.value.toLowerCase();
+  const tbody = document.getElementById('stockTableBody');
+  Array.from(tbody.rows).forEach(row => {
+    const itemName = row.cells[0].textContent.toLowerCase();
+    if(itemName.includes(query)) {
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+    }	
+  });
+});
+
+let confirmedOrders = JSON.parse(localStorage.getItem('confirmedOrders')) || [];
+
+function confirmBuyList() {
+  if (buyList.length === 0) return alert('No items to confirm.');
+
+  // Calculate grand total
+  let grandTotal = buyList.reduce((sum, item) => sum + item.qty * item.price, 0);
+
+  // Create order object
+  const order = {
+    id: Date.now(),
+    date: new Date().toLocaleString(),
+    items: JSON.parse(JSON.stringify(buyList)),
+    total: grandTotal
+  };
+
+  // Save to confirmed orders
+  confirmedOrders.push(order);
+  localStorage.setItem('confirmedOrders', JSON.stringify(confirmedOrders));
+
+  // Clear current buy list
+  buyList = [];
+  saveBuyList();
+  renderBuyList();
+
+  alert(`Order confirmed! Total: ${grandTotal.toFixed(2)}`);
+}
+
+
+
+    function addStock(){
+      const name = document.getElementById("stock-name").value.trim();
+      const qty = parseFloat(document.getElementById("stock-qty").value);
+      const unit = document.getElementById("stock-unit").value.trim();
+      const price = parseFloat(document.getElementById("stock-price").value);
+
+      if (!name || isNaN(qty) || qty <= 0 || isNaN(price) ) {
+        return alert("Please enter valid name, quantity and price.");
+      }
+
+      const existing = stockData.find(s => s.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+        existing.qty += qty;
+        if (unit) existing.unit = unit;
+        existing.price = price;
+      } else {
+        stockData.push({ name, qty, unit: unit || '', price });
+      }
+      saveData();
+      renderStock();
+      updateItemLists();
+      document.getElementById("stock-name").value = "";
+      document.getElementById("stock-qty").value = "";
+      document.getElementById("stock-unit").value = "";
+      document.getElementById("stock-price").value = "";
+    }
+
+    function updateItemLists(){
+      const selects = document.querySelectorAll('.item-select');
+      selects.forEach(sel=>{
+        const cur = sel.value;
+        sel.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.text = '';
+        sel.appendChild(placeholder);
+        stockData.forEach(item=>{
+          const opt = document.createElement('option');
+          opt.value = item.name;
+          opt.text = `${item.name} (${item.unit || ''})`;
+          sel.appendChild(opt);
+        });
+        sel.value = cur;
+      });
+    }
+
+    /* ===========================
+       PURCHASE ORDER (currentPO)
+       =========================== */
+    function addToCurrentPO(){
+      const name = document.getElementById('poItem').value.trim();
+      const qty = parseFloat(document.getElementById('poQty').value);
+      if (!name || isNaN(qty) || qty <= 0) return alert('Enter valid item and quantity');
+      const stock = stockData.find(s => s.name.toLowerCase() === name.toLowerCase());
+      if (!stock) return alert('Item not found in stock');
+      const price = Number(stock.price) || 0;
+      currentPO.push({ name: stock.name, qty, unit: stock.unit || '', price, total: qty * price });
+      renderPO();
+      document.getElementById('poItem').value = '';
+      document.getElementById('poQty').value = '';
+    }
+
+    function renderPO(){
+      const tbody = document.getElementById('poTableBody');
+      tbody.innerHTML = '';
+      let sum = 0;
+      currentPO.forEach((row, idx)=>{
+        row.total = Number(row.qty) * Number(row.price);
+        sum += row.total;
+        const tr = document.createElement('tr');
+
+        const tdName = document.createElement('td'); tdName.textContent = row.name; tr.appendChild(tdName);
+        const tdQty = document.createElement('td'); tdQty.textContent = row.qty; tdQty.contentEditable = true; tr.appendChild(tdQty);
+        const tdUnit = document.createElement('td'); tdUnit.textContent = row.unit || ''; tdUnit.contentEditable = true; tr.appendChild(tdUnit);
+        const tdPrice = document.createElement('td'); tdPrice.textContent = Number(row.price).toFixed(2); tdPrice.contentEditable = true; tr.appendChild(tdPrice);
+        const tdTotal = document.createElement('td'); tdTotal.textContent = row.total.toFixed(2); tr.appendChild(tdTotal);
+
+        const tdAction = document.createElement('td');
+        const del = document.createElement('button'); del.className='action-btn delete-btn'; del.textContent='Delete';
+        del.onclick = ()=> { currentPO.splice(idx,1); renderPO(); };
+        tdAction.appendChild(del);
+        tr.appendChild(tdAction);
+
+        // inline editable events
+        tdQty.addEventListener('blur', ()=>{ const v = parseFloat(tdQty.textContent); if(isNaN(v) || v<=0){ renderPO(); return; } currentPO[idx].qty = v; currentPO[idx].total = currentPO[idx].qty * currentPO[idx].price; saveData(); renderPO(); });
+        tdUnit.addEventListener('blur', ()=>{ currentPO[idx].unit = tdUnit.textContent.trim(); saveData(); renderPO(); });
+        tdPrice.addEventListener('blur', ()=>{ const v = parseFloat(tdPrice.textContent); if(isNaN(v) || v<0){ renderPO(); return; } currentPO[idx].price = v; currentPO[idx].total = currentPO[idx].qty * currentPO[idx].price; saveData(); renderPO(); });
+
+        tbody.appendChild(tr);
+      });
+      document.getElementById('po-total').textContent = sum.toFixed(2);
+    }
+
+    function submitPO(){
+      const school = document.getElementById('po-school').value.trim();
+      if (!school) return alert('Enter school name');
+      if (currentPO.length===0) return alert('No items in order');
+
+      // check stock
+      for(const it of currentPO){
+        const s = stockData.find(x=>x.name===it.name);
+        if(!s) return alert('Item not in stock: ' + it.name);
+        if(s.qty < it.qty) return alert('Not enough stock for: ' + it.name);
+      }
+
+      let total = 0;
+      currentPO.forEach(i=>{
+        const s = stockData.find(x=>x.name===i.name);
+        s.qty -= i.qty;
+        total += i.total;
+        salesData.push({
+          date: new Date().toLocaleString(),
+          name: i.name,
+          qty: i.qty,
+          unit: i.unit || '',
+          price: i.price,
+          total: i.total,
+          school
+        });
+      });
+
+      const po = { id: Date.now(), date: new Date().toLocaleString(), school, total, items: JSON.parse(JSON.stringify(currentPO)) };
+      poList.push(po);
+      saveData();
+      renderStock(); renderHistory(); renderPOList();
+      setUnifiedReceiptPreview('po', po);
+      currentPO = [];
+      renderPO();
+      document.getElementById('po-school').value = '';
+      alert('Purchase Order saved (preview available via "Preview & Print Receipt")');
+    }
+
+    function renderPOList(){
+      const tbody = document.getElementById('po-list-body');
+      tbody.innerHTML = '';
+      poList.forEach((po, idx)=> {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${po.date}</td><td>${escapeHtml(po.school)}</td><td>${Number(po.total).toFixed(2)}</td>
+          <td>
+            <button class="action-btn view-btn">View</button>
+            <button class="action-btn delete-btn">Delete</button>
+          </td>`;
+        tr.querySelector('.view-btn').onclick = ()=> { setUnifiedReceiptPreview('po', po); document.querySelectorAll('.menu-link').forEach(l=>l.classList.remove('active')); document.querySelector('.menu-link[data-section="purchase-section"]').classList.add('active'); document.querySelectorAll('.section').forEach(s=>s.classList.remove('active')); document.getElementById('purchase-section').classList.add('active'); };
+        tr.querySelector('.delete-btn').onclick = ()=> { if(!confirm('Delete this Purchase Order?')) return; poList.splice(idx,1); saveData(); renderPOList(); };
+        tbody.appendChild(tr);
+      });
+    }
+
+    /* ===========================
+       Unified Receipt Builder & Previews
+       =========================== */
+    function buildUnifiedReceiptHTML({ type, id, customer, items, total }) {
+      // Include Unit column
+      const header = (type === 'po') ? 'PURCHASE ORDER' : 'SALES RECEIPT';
+      const idLine = (type === 'po') ? `<div><strong>PO No:</strong> ${id}</div><div><strong>Customer:</strong> ${escapeHtml(customer || '')}</div>` : `<div><strong>Receipt No:</strong> ${id}</div><div><strong>Customer:</strong> ${escapeHtml(customer || '') || 'Walk-in'}</div>`;
+      const rows = items.map(it => {
+        return `<tr>
+          <td style="padding:6px 4px;border-bottom:1px dashed #ccc;">${escapeHtml(it.name)}</td>
+          <td style="padding:6px 4px;border-bottom:1px dashed #ccc;text-align:center;">${escapeHtml(it.unit || '')}</td>
+          <td style="padding:6px 4px;border-bottom:1px dashed #ccc;text-align:center;">${Number(it.qty)}</td>
+          <td style="padding:6px 4px;border-bottom:1px dashed #ccc;text-align:right;">${Number(it.price).toFixed(2)}</td>
+          <td style="padding:6px 4px;border-bottom:1px dashed #ccc;text-align:right;">${Number(it.total).toFixed(2)}</td>
+        </tr>`;
+      }).join('');
+
+      const html = `
+        <div style="font-family:'Segoe UI',sans-serif;">
+          <div style="text-align:center;margin-bottom:6px;">
+            <h2 style="margin:0;color:var(--msite-blue);">MSITE Enterprises</h2>
+            <div style="font-size:12px;margin-top:4px;">B20 L4 Cilrai, Cagayan De Oro City, Misamis Oriental</div>
+            <div style="font-size:12px;margin-top:2px;">Email: msite.enterprises2016@gmail.com </div>
+ 		<div style="font-size:12px;margin-top:4px;">Facebook: M'site En</div>
+		<div style="font-size:12px;margin-top:4px;">Contact: 09553303187</div>
+
+
+          <div style="margin-top:8px;font-weight:bold;text-align:center;">${header}</div>
+          <div style="margin-top:6px;font-size:13px;">${idLine}</div>
+          <hr style="border:none;border-top:1px dashed #333;margin:8px 0;">
+
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:6px 4px;">Item</th>
+                <th style="text-align:center;padding:6px 4px;">Unit</th>
+                <th style="text-align:center;padding:6px 4px;">Qty</th>
+                <th style="text-align:right;padding:6px 4px;">Price</th>
+                <th style="text-align:right;padding:6px 4px;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+
+          <div style="margin-top:8px;text-align:right;font-weight:bold;">
+            Subtotal: ${Number(total).toFixed(2)}
+          </div>
+
+          <hr style="border:none;border-top:1px dashed #333;margin:8px 0;">
+          <div style="display:flex;justify-content:space-between;margin-top:6px;">
+            <div style="width:45%;text-align:center">
+              <div style="border-top:1px dashed #333;height:0;margin-top:12px"></div>
+              <p style="margin:6px 0 0 0;font-size:11px">Received by</p>
+            </div>
+            <div style="width:45%;text-align:center">
+              <div style="border-top:1px dashed #333;height:0;margin-top:12px"></div>
+              <p style="margin:6px 0 0 0;font-size:11px">Authorized by</p>
+            </div>
+          </div>
+
+          <hr style="border:none;border-top:1px dashed #333;margin:8px 0;">
+          <div style="text-align:center;font-style:italic;font-size:12px;">Thank you for purchasing at MSITE Enterprise!</div>
+        </div>
+      `;
+      return html;
+    }
+
+    function setUnifiedReceiptPreview(type, dataObj){
+      const container = (type === 'po') ? document.getElementById('receipt') : document.getElementById('cashout-receipt');
+      const items = dataObj.items || [];
+      const total = dataObj.total || items.reduce((s,i)=> s + Number(i.total || 0), 0);
+      const id = dataObj.id || (type === 'po' ? Date.now() : ('R' + Date.now()));
+      const customer = dataObj.school || dataObj.customer || '';
+      container.innerHTML = buildUnifiedReceiptHTML({ type: type === 'po' ? 'po' : 'cash', id, customer, items, total });
+      container.style.display = 'block';
+    }
+
+    /* preview window builder */
+    function openReceiptPreviewWindow(receiptHTML, sizeKey) {
+      let widthCss, fontSize, padding;
+      switch (sizeKey) {
+        case '80mm': widthCss = '80mm'; fontSize = '12px'; padding = '8px'; break;
+        case 'A5': widthCss = '148mm'; fontSize = '13px'; padding = '12px'; break;
+        case 'A4': widthCss = '210mm'; fontSize = '14px'; padding = '16px'; break;
+        default: widthCss = '58mm'; fontSize = '11px'; padding = '6px';
+      }
+
+      const w = window.open('', '_blank', 'scrollbars=yes,resizable=yes');
+      if (!w) { alert('Popup blocked. Allow popups to preview receipts.'); return; }
+
+      // prepare styles and script for preview window
+      const styles = `
+        <style>
+          body { font-family: "Segoe UI", sans-serif; margin:0; padding:${padding}; color:#000; -webkit-
+-color-adjust:exact; }
+          .preview-wrap { width:${widthCss}; margin:0 auto; box-sizing:border-box; }
+          h2 { color:var(--msite-blue); margin:0 0 6px 0; text-align:center; }
+          table { width:100%; border-collapse:collapse; margin-top:6px; font-size:${fontSize}; }
+          th, td { padding:6px 4px; border-bottom:1px dashed #999; }
+          th { text-align:left; }
+          .btn { display:inline-block; padding:8px 12px; background:var(--msite-blue-2); color:#fff; border-radius:6px; text-decoration:none; cursor:pointer; margin:6px 4px; }
+          .btn:hover { background:var(--msite-blue); }
+          @media print { @page { size: ${widthCss} auto; margin: 6mm; } .no-print { display:none; } }
+        </style>
+      `;
+
+      const script = `
+        <script>
+          function doPrint() {
+            window.print();
+          }
+          function closeWin() { window.close(); }
+          // notify opener after print completes (auto-clear action)
+          window.onafterprint = function() {
+            try { if(window.opener && !window.opener.closed) { window.opener.postMessage({ action: 'receiptPrinted' }, '*'); } } catch(e) {}
+          };
+        <\/script>
+      `;
+
+      w.document.open();
+      w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Receipt Preview</title>${styles}</head><body>
+        <div style="text-align:right;" class="no-print">
+          <button class="btn" onclick="doPrint()">Print</button>
+          <button class="btn" onclick="closeWin()">Close</button>
+        </div>
+        <div class="preview-wrap">${receiptHTML}</div>
+        ${script}
+      </body></html>`);
+      w.document.close();
+
+      // track that preview happened (to allow auto-clear after printed)
+      lastPreviewType = null; // will be set by caller
+    }
+
+    /* UI preview trigger functions */
+    function previewPOReceipt(){
+      const container = document.getElementById('receipt');
+      if (!container.innerHTML.trim()) return alert('No Purchase Order receipt available. Save or view a PO first.');
+      const sizeKey = document.getElementById('receipt-size-po').value || '58mm';
+      // mark last preview type for opener to clear only if it's cash
+      lastPreviewType = 'po';
+      lastPreviewPayload = { type: 'po' };
+      openReceiptPreviewWindow(container.innerHTML, sizeKey);
+    }
+
+    function previewCashoutReceipt(){
+  const container = document.getElementById('cashout-receipt');
+  if (!container.innerHTML.trim()) {
+    if (cashoutBuffer.length === 0) return alert('No cashout items available. Add items before printing.');
+    setUnifiedReceiptPreview('cash', { id: 'R' + Date.now(), items: JSON.parse(JSON.stringify(cashoutBuffer)), total: cashoutBuffer.reduce((s,i)=> s + Number(i.total || 0), 0) });
+  }
+  const sizeKey = document.getElementById('receipt-size-cash').value || '58mm';
+  const html = document.getElementById('cashout-receipt').innerHTML;
+  const w = window.open('', '_blank');
+  w.document.write(`<html><head><title>Print</title></head><body>${html}</body></html>`);
+  w.document.close();
+  w.focus();
+  w.print();
+  w.close();
+  // optional: clear after print
+  cashoutBuffer = [];
+  saveData();
+  renderCashoutTable();
+  renderStock();
+}
+
+
+    /* Listen for print-complete messages from preview window */
+    window.addEventListener('message', (ev) => {
+      try {
+        const data = ev.data || {};
+        if (data.action === 'receiptPrinted') {
+          // if last preview was cash, clear the buffer (auto-clear after successful print)
+          if (lastPreviewType === 'cash') {
+            cashoutBuffer = [];
+            saveData();
+            renderCashoutTable();
+            renderStock();
+            alert('Cashout printed — cart cleared.');
+          } else {
+            // PO printing doesn't clear cart
+            alert('Receipt printed.');
+          }
+        }
+      } catch(e) { /* ignore */ }
+    });
+
+    /* ===========================
+       Cashout functions
+       =========================== */
+    function addToCashout(){
+      const name = document.getElementById('cashout-item').value.trim();
+      const qty = parseFloat(document.getElementById('cashout-qty').value);
+      if(!name || isNaN(qty) || qty<=0) return alert('Enter valid item and quantity');
+      const stock = stockData.find(s => s.name.toLowerCase() === name.toLowerCase());
+      if(!stock) return alert('Item not found in stock');
+      if(stock.qty < qty) return alert('Not enough stock available');
+      const price = Number(stock.price) || 0;
+      const record = { name: stock.name, qty, unit: stock.unit || '', price, total: qty*price };
+      cashoutBuffer.push(record);
+      stock.qty -= qty;
+      saveData();
+      renderStock(); renderCashoutTable();
+      document.getElementById('cashout-item').value = '';
+      document.getElementById('cashout-qty').value = '';
+    }
+
+    function renderCashoutTable(){
+      const tbody = document.getElementById('salesTableBody');
+      tbody.innerHTML = ''; let sum=0;
+      cashoutBuffer.forEach((r, idx) => {
+        sum += r.total;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${escapeHtml(r.name)}</td>
+                        <td contenteditable="true">${r.qty}</td>
+                        <td contenteditable="true">${escapeHtml(r.unit || '')}</td>
+                        <td contenteditable="true">${Number(r.price).toFixed(2)}</td>
+                        <td>${Number(r.total).toFixed(2)}</td>
+                        <td><button class="action-btn delete-btn">Remove</button></td>`;
+        tr.querySelector('button').onclick = () => {
+          const stockItem = stockData.find(s => s.name === r.name);
+          if (stockItem) stockItem.qty += r.qty;
+          cashoutBuffer.splice(idx,1);
+          saveData();
+          renderStock();
+          renderCashoutTable();
+        };
+
+        // inline edit handlers
+        const tdQty = tr.children[1];
+        const tdUnit = tr.children[2];
+        const tdPrice = tr.children[3];
+        tdQty.addEventListener('blur', ()=>{ const v=parseFloat(tdQty.textContent); if(isNaN(v)|| v<=0){ renderCashoutTable(); return; } r.qty = v; r.total = r.qty * r.price; saveData(); renderCashoutTable(); });
+        tdUnit.addEventListener('blur', ()=>{ r.unit = tdUnit.textContent.trim(); saveData(); renderCashoutTable(); });
+        tdPrice.addEventListener('blur', ()=>{ const v=parseFloat(tdPrice.textContent); if(isNaN(v)|| v<0){ renderCashoutTable(); return; } r.price = v; r.total = r.qty * r.price; saveData(); renderCashoutTable(); });
+
+        tbody.appendChild(tr);
+      });
+      document.getElementById('salesTotal').textContent = sum.toFixed(2);
+    }
+
+    function finalizeCashout(){
+      if(cashoutBuffer.length===0) return alert('No items to finalize');
+      const date = new Date().toLocaleString();
+      let grand = 0;
+      const idBase = Date.now();
+      cashoutBuffer.forEach((r, idx) => {
+        const entryId = idBase + idx;
+        salesData.push({ id: entryId, date, name: r.name, qty: r.qty, unit: r.unit || '', price: r.price, total: r.total, school: 'Walk-in' });
+        grand += r.total;
+      });
+      saveData();
+      // create preview in-app
+      setUnifiedReceiptPreview('cash', { id: 'R' + Date.now(), items: JSON.parse(JSON.stringify(cashoutBuffer)), total: grand });
+      // Promise: do NOT clear right away — only after print
+      // show toast
+      alert('Cashout saved to Sales History (preview available via "Preview & Print Receipt").');
+      renderHistory();
+    }
+
+    /* ===========================
+       Receipt preview actions from modal (in-page)
+       =========================== */
+    function openModalPreview(htmlContent) {
+      document.getElementById('preview-content').innerHTML = htmlContent;
+      document.getElementById('preview-modal').classList.add('show');
+    }
+    function closeModalPreview() {
+      document.getElementById('preview-modal').classList.remove('show');
+      document.getElementById('preview-content').innerHTML = '';
+    }
+    function openPrintWindowFromModal(){
+      const content = document.getElementById('preview-content').innerHTML;
+      if(!content.trim()) return alert('No content');
+      // choose size from cash or po dropdown - default to 58mm
+      const sizeKey = document.getElementById('receipt-size-cash').value || document.getElementById('receipt-size-po')?.value || '58mm';
+      openReceiptPreviewWindow(content, sizeKey);
+      closeModalPreview();
+    }
+
+    /* Preview triggers used by UI (fallback: in-page modal) */
+   function previewPOReceipt(){
+  const container = document.getElementById('receipt');
+  if (!container.innerHTML.trim()) return alert('No Purchase Order receipt available. Save or view a PO first.');
+  const sizeKey = document.getElementById('receipt-size-po').value || '58mm';
+  const html = container.innerHTML;
+  const w = window.open('', '_blank');
+  w.document.write(`<html><head><title>Print</title></head><body>${html}</body></html>`);
+  w.document.close();
+  w.focus();
+  w.print();
+  w.close();
+}
+
+
+    function previewCashoutReceipt(){
+      const container = document.getElementById('cashout-receipt');
+      if (!container.innerHTML.trim()) {
+        if (cashoutBuffer.length === 0) return alert('No cashout items available. Add items before previewing.');
+        setUnifiedReceiptPreview('cash', { id: 'R' + Date.now(), items: JSON.parse(JSON.stringify(cashoutBuffer)), total: cashoutBuffer.reduce((s,i)=> s + Number(i.total || 0), 0) });
+      }
+      const sizeKey = document.getElementById('receipt-size-cash').value || '58mm';
+      lastPreviewType = 'cash';
+      lastPreviewPayload = { type: 'cash' };
+      openReceiptPreviewWindow(document.getElementById('cashout-receipt').innerHTML, sizeKey);
+    }
+
+    /* ===========================
+       Sales history
+       =========================== */
+    function renderHistory(){
+      const tbody = document.getElementById('history-table-body');
+      tbody.innerHTML = '';
+      salesData.forEach(s=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${s.date}</td><td>${escapeHtml(s.name)}</td><td>${s.qty}</td><td>${escapeHtml(s.unit || '')}</td><td>${Number(s.price).toFixed(2)}</td><td>${Number(s.total).toFixed(2)}</td><td>${escapeHtml(s.school || '')}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function clearSalesHistory(){
+      if(!confirm('Clear history?')) return;
+      salesData = [];
+      saveData();
+      renderHistory();
+    }
+
+    /* ===========================
+       Initialization & navigation
+       =========================== */
+    if(!localStorage.getItem('stockData')){
+      stockData = [
+        { name: 'Notebook A4', qty: 100, price: 30, unit: 'pcs' },
+        { name: 'Bond Paper A4', qty: 50, price: 200, unit: 'reams' }
+      ];
+      saveData();
+    } else {
+      stockData = JSON.parse(localStorage.getItem('stockData')) || [];
+    }
+    salesData = JSON.parse(localStorage.getItem('salesData')) || [];
+    poList = JSON.parse(localStorage.getItem('poList')) || [];
+
+    document.querySelectorAll('.menu-link').forEach(link=>{
+      link.addEventListener('click', (e)=>{
+        e.preventDefault();
+        document.querySelectorAll('.menu-link').forEach(l=>l.classList.remove('active'));
+        document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+        link.classList.add('active');
+        const sec = document.getElementById(link.dataset.section);
+        if(sec) sec.classList.add('active');
+      });
+    });
+
+    // start
+    renderStock();
+    updateItemLists();
+    renderPO();
+    renderCashoutTable();
+    renderHistory();
+    renderPOList();
+
+    /* ===========================
+       Message: print complete handling for auto-clear
+       =========================== */
+    // Already handled in window message listener above.
+
+    // (No more code below)
+  </script>
+</body>
+</html>
