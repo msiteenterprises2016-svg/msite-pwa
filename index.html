@@ -1049,13 +1049,7 @@ function confirmBuyList() {
         <div class="preview-wrap">${receiptHTML}</div>
         ${script}
       
-<script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./service-worker.js')
-    .then(() => console.log('✅ Service Worker Registered'))
-    .catch(err => console.log('Service Worker failed:', err));
-}
-</script>
+
 
 
 <script>
@@ -1127,13 +1121,7 @@ function refreshApp() {
     <div style="text-align:center;"><img src="./msite.png" alt="MSITE" width="96" style="display:block;margin:0 auto 8px;"><div style="font-weight:700;font-size:18px;">MSITE</div></div>
   </div>
 ${html}
-<script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./service-worker.js')
-    .then(() => console.log('✅ Service Worker Registered'))
-    .catch(err => console.log('Service Worker failed:', err));
-}
-</script>
+
 
 
 <script>
@@ -1300,14 +1288,7 @@ function refreshApp() {
     }
 
     /* Preview triggers used by UI (fallback: in-page modal) */
-   <script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./service-worker.js')
-    .then(() => console.log('✅ Service Worker Registered'))
-    .catch(err => console.log('Service Worker failed:', err));
-}
-</script>
-
+  
 
 <script>
 window.addEventListener('load', function(){ setTimeout(()=>{ const s=document.getElementById('app-splash'); if(s){ s.style.transition='opacity 300ms'; s.style.opacity=0; setTimeout(()=>s.remove(),350);} }, 350); });
@@ -1424,13 +1405,7 @@ function refreshApp() {
     // (No more code below)
   </script>
 
-<script>
-if ('serviceWorker' in navigator) {
-navigator.serviceWorker.register('service-worker.js')
-    .then(() => console.log('✅ Service Worker Registered'))
-    .catch(err => console.log('Service Worker failed:', err));
-}
-</script>
+
 
 
 <script>
